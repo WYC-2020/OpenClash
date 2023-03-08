@@ -37,6 +37,11 @@ else
 	head_width = "120px"
 end
 
+local cfg_name
+if uci:get("openclash", "config", "config_path") then
+	cfg_name = fs.basename(uci:get("openclash", "config", "config_path"))
+end
+
 local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]+") or "self.sectiontype"
 -%>
 
@@ -48,7 +53,7 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 	}
 	
 	#tab-header-<%=self.config%>-<%=self.sectiontype%>{
-		height: 40px;
+		min-height: 35px;
 		text-align: center;
 		position: relative;
 		white-space: nowrap;
@@ -57,25 +62,33 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 	}
 
 	#tab-header-<%=self.config%>-<%=self.sectiontype%> ul{
-		position: absolute;
 		left: -1px;
 		width: 100%;
+		padding: unset !important;
+		margin: unset !important;
 	}
 
 	#tab-header-<%=self.config%>-<%=self.sectiontype%> ul li{
 		float: left;
 		width: <%=head_width%>;
-		line-height: 40px;
+		line-height: 35px;
 		padding: 0 1px;
-		white-space: nowrap;
-		overflow: hidden;
-        text-overflow: ellipsis;
-		border-bottom: 1px solid #dddddd;
 		border-right: 1px solid #dddddd;
+		cursor: pointer;
 	}
 
 	#tab-header-<%=self.config%>-<%=self.sectiontype%> ul li a{
-		float: unset !important;;
+		float: unset !important;
+		padding: unset !important;
+		vertical-align: middle;
+		white-space: nowrap;
+		overflow: hidden;
+        text-overflow: ellipsis;
+	}
+
+	#tab-header-<%=self.config%>-<%=self.sectiontype%> ul li.cbi-tab > a{
+		font-weight: bolder;
+		color: unset;
 	}
 	 
 	#tab-header-<%=self.config%>-<%=self.sectiontype%> ul li a:hover{
@@ -103,14 +116,16 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 	<%- end -%>
 	<div class="cbi-section-descr"><%=self.description%></div>
 	<%- local count = 0 -%>
-	<div id="tab-header-<%=self.config%>-<%=self.sectiontype%>">
+	<div id="tab-header-<%=self.config%>-<%=self.sectiontype%>" class="cbi-tabmenu">
 		<ul class="cbi-tabmenu">
 			<%- 
 			if #e ~= 1 then
 				for t,o in ipairs(e)do
-					if o.name == fs.basename(uci:get("openclash", "config", "config_path")) then
+					if o.name == cfg_name and cfg_name then
 				-%>
 					<li name="tab-header-<%=self.config%>-<%=self.sectiontype%>" class="cbi-tab"><a><%=o.name%></a></li>
+					<%- elseif not cfg_name and o.name == "ALL" then -%>
+					<li name="tab-header-<%=self.config%>-<%=self.sectiontype%>" class="cbi-tab"><a>ALL</a></li>
 					<%- else -%>
 					<li name="tab-header-<%=self.config%>-<%=self.sectiontype%>" class="cbi-tab-disabled"><a><%=o.name%></a></li>
 					<%- end -%>
@@ -122,10 +137,10 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 	</div>
 	<div id="tab-content">
 		<%- for t,o in ipairs(e)do
-			if uci:get("openclash", "config", "config_path") and o.name == fs.basename(uci:get("openclash", "config", "config_path")) then
+			if #e ~= 1 and o.name == cfg_name and cfg_name then
 			-%>
 			<div class="dom-<%=self.config%>-<%=self.sectiontype%>" style="display: block;">
-			<%- elseif not uci:get("openclash", "config", "config_path") and o.name == "ALL" then -%>
+			<%- elseif #e == 1 then -%>
 			<div class="dom-<%=self.config%>-<%=self.sectiontype%>" style="display: block;">
 			<%- else -%>
 			<div class="dom-<%=self.config%>-<%=self.sectiontype%>">
@@ -315,7 +330,6 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 				this.className = 'cbi-tab';
 				divs<%=sectiontype%>[this.id].style.display = 'block';
 				localStorage.setItem("titles<%=sectiontype%>",this.id);
-				localStorage.setItem("id<%=sectiontype%>","cbi-<%=self.config%>-<%=self.sectiontype%>");
 			};
 
 			li<%=sectiontype%>.onTouchStart = function(){
@@ -326,7 +340,6 @@ local sectiontype = "_"..self.config.."_"..string.match(self.sectiontype, "[%w_]
 				this.className = 'cbi-tab';
 				divs<%=sectiontype%>[this.id].style.display = 'block';
 				localStorage.setItem("titles<%=sectiontype%>",this.id);
-				localStorage.setItem("id<%=sectiontype%>","cbi-<%=self.config%>-<%=self.sectiontype%>");
 			};
 		};
 	};
