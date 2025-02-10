@@ -253,7 +253,7 @@ local function opcv()
 		if fs.access("/bin/opkg") then
 			return luci.sys.exec("rm -f /var/lock/opkg.lock && opkg status luci-app-openclash 2>/dev/null |grep 'Version' |awk -F 'Version: ' '{print \"v\"$2}'")
 		elseif fs.access("/usr/bin/apk") then
-			return "v" .. luci.sys.exec("apk list luci-app-openclash 2>/dev/null |grep 'installed' | grep -oE '\\d+(\\.\\d+)*' | head -1")
+			return "v" .. luci.sys.exec("apk list luci-app-openclash 2>/dev/null|grep 'installed' | grep -oE '[0-9]+(\\.[0-9]+)*' | head -1")
 		end
 	end
 end
@@ -370,6 +370,8 @@ function action_restore_config()
 	luci.sys.call("cp /usr/share/openclash/backup/openclash_force_sniffing* /etc/openclash/custom/ >/dev/null 2>&1 &")
 	luci.sys.call("cp /usr/share/openclash/backup/openclash_sniffing* /etc/openclash/custom/ >/dev/null 2>&1 &")
 	luci.sys.call("cp /usr/share/openclash/backup/yml_change.sh /usr/share/openclash/yml_change.sh >/dev/null 2>&1 &")
+	luci.sys.call("cp /usr/share/openclash/backup/china_ip_route.ipset /etc/openclash/china_ip_route.ipset >/dev/null 2>&1 &")
+	luci.sys.call("cp /usr/share/openclash/backup/china_ip6_route.ipset /etc/openclash/china_ip6_route.ipset >/dev/null 2>&1 &")
 	luci.sys.call("rm -rf /etc/openclash/history/* >/dev/null 2>&1 &")
 end
 

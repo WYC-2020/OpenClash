@@ -99,6 +99,10 @@ o = s:taboption("op_mode", Flag, "bypass_gateway_compatible", translate("Bypass 
 o.description = translate("If The Network Cannot be Connected in Bypass Gateway Mode, Please Try to Enable.")..font_red..bold_on..translate("Suggestion: If The Device Does Not Have WLAN, Please Disable The Lan Interface's Bridge Option")..bold_off..font_off
 o.default = 0
 
+o = s:taboption("op_mode", Flag, "disable_quic_go_gso", translate("Disable quic-go GSO Support"))
+o.description = font_red..bold_on..translate("Suggestion: If Encountering Issues With QUIC UDP on The Linux Kernel Version Above 6.6, Please Try to Enable.")..bold_off..font_off
+o.default = 0
+
 o = s:taboption("op_mode", Flag, "small_flash_memory", translate("Small Flash Memory"))
 o.description = translate("Move Core And GEOIP Data File To /tmp/etc/openclash For Small Flash Memory Device")
 o.default = 0
@@ -216,9 +220,10 @@ o.cfgvalue = function(...)
 end
 
 ip_ac = s2:option(Value, "src_ip", translate("Internal addresses"))
-ip_ac.datatype = "ipmask"
+ip_ac.datatype = "or(ipmask, string)"
 ip_ac.placeholder = "0.0.0.0/0"
-ip_ac.rmempty = false
+ip_ac.rmempty = true
+ip_ac:value("localnetwork", translate("Local Network"))
 
 o = s2:option(Value, "src_port", translate("Internal ports"))
 o.datatype = "or(port, portrange)"
@@ -240,8 +245,9 @@ o.default = "tcp"
 o.rmempty = false
 
 o = s2:option(ListValue, "target", translate("Target"))
-o:value("return", translate("Return"))
-o:value("accept", translate("Accept"))
+o:value("return", translate("RETURN"))
+o:value("accept", translate("ACCEPT"))
+o:value("drop", translate("DROP"))
 o.rmempty = false
 
 luci.ip.neighbors({ family = 4 }, function(n)
@@ -375,7 +381,7 @@ o = s:taboption("stream_enhance", Value, "stream_auto_select_interval", translat
 o.default = "30"
 o.datatype = "uinteger"
 o:depends("stream_auto_select", "1")
-o.rmempty = false
+o.rmempty = true
 
 o = s:taboption("stream_enhance", ListValue, "stream_auto_select_logic", font_red..bold_on..translate("Auto Select Logic")..bold_off..font_off)
 o.default = "urltest"
