@@ -1,6 +1,6 @@
 #!/bin/bash
-. /usr/share/openclash/log.sh
-. /usr/share/openclash/openclash_etag.sh
+. "${IPKG_INSTROOT}/usr/share/openclash/log.sh"
+. "${IPKG_INSTROOT}/usr/share/openclash/openclash_etag.sh"
 
 DOWNLOAD_FILE_CURL() {
     [ -z "$1" ] || [ -z "$2" ] && return 1
