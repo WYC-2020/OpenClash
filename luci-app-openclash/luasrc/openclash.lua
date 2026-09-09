@@ -91,7 +91,7 @@ end
 function readfile(filename)
 	local content, err = fs.readfile(filename)
 	if not content then return nil, err end
-	if content:find("BEGIN AGE ENCRYPTED FILE") then
+	if content:sub(1, 1024):find("BEGIN AGE ENCRYPTED FILE", 1, true) then
 		local keys = get_age_keys(filename)
 		if keys and keys.secret and keys.secret ~= "" then
 			return age_decrypt(keys.secret, content) or content
@@ -296,7 +296,10 @@ function filesize(e)
 	return string.format("%.1f",e)..a[t] or "0.0 KB"
 end
 
-function lanip()
+function lanip(loopback)
+	if loopback then
+		return "127.0.0.1"
+	end
 	local lan_int_name = uci:get("openclash", "@overwrite[0]", "lan_interface_name") or uci:get("openclash", "config", "lan_interface_name") or "0"
 	local lan_ip
 	if lan_int_name == "0" then
@@ -606,6 +609,25 @@ function pkg_type()
 	else
 		return "opkg"
 	end
+end
+
+--- Reads the CDN proxy address list from /usr/share/openclash/res/cdn.list.
+-- Lines starting with "#" are treated as comments and skipped.
+-- @return Table of CDN address strings (deduplicated, in file order)
+function cdn_list()
+	local list = {}
+	local seen = {}
+	local raw = fs.readfile("/usr/share/openclash/res/cdn.list")
+	if raw then
+		for line in raw:gmatch("[^\r\n]+") do
+			line = line:gsub("^%s+", ""):gsub("%s+$", "")
+			if line ~= "" and line:sub(1, 1) ~= "#" and not seen[line] then
+				seen[line] = true
+				list[#list + 1] = line
+			end
+		end
+	end
+	return list
 end
 
 --- Read a field of an installed package directly from the package database

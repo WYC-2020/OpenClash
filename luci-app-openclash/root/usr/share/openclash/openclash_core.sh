@@ -26,7 +26,7 @@ if [ -n "$2" ] && echo "$2" | grep -qE '^https?://'; then
    DIRECT_CORE_URL="$2"
 fi
 if [ "$github_address_mod" = "0" ] && [ -z "$DIRECT_CORE_URL" ] && [ -z "$(echo $2 2>/dev/null |grep -E 'http|one_key_update')" ] && [ -z "$(echo $3 2>/dev/null |grep 'http')" ]; then
-   LOG_TIP "If the download fails, try setting the CDN in Overwrite Settings - General Settings - Github Address Modify Options"
+   LOG_TIP "If the download fails, try setting the CDN in Overwrite Settings - General Settings - GitHub Address Proxy Options"
 fi
 if [ -z "$DIRECT_CORE_URL" ]; then
    if [ -n "$3" ] && [ "$2" = "one_key_update" ]; then
@@ -47,19 +47,22 @@ C_CORE_TYPE=$(uci_get_config "core_type")
 SMART_ENABLE=$(uci_get_config "smart_enable" || echo 0)
 OIX_TOKEN=$(uci_get_config "oix_token")
 [ "$SMART_ENABLE" -eq 1 ] && CORE_TYPE="Smart"
-[ "$CORE_TYPE" = "Oix" ] || [ -n "$OIX_TOKEN" ] && CORE_TYPE="Oix"
+[ -n "$OIX_TOKEN" ] && CORE_TYPE="Oix"
 [ -z "$CORE_TYPE" ] && CORE_TYPE="Meta"
 small_flash_memory=$(uci_get_config "small_flash_memory")
 CPU_MODEL=$(uci_get_config "core_version")
 RELEASE_BRANCH=$(uci_get_config "release_branch" || echo "master")
 
 if [ -z "$DIRECT_CORE_URL" ]; then
-   if [ "$github_address_mod" != "0" ]; then
-      /usr/share/openclash/clash_version.sh "$github_address_mod" 2>/dev/null
+   lua /usr/share/openclash/openclash_version.lua "$github_address_mod" 2>/dev/null
+   if [ "$CORE_TYPE" = "Oix" ]; then
+      CORE_LV=$(jsonfilter -i /tmp/openclash_version_history.json -e "@.oix.ver" 2>/dev/null)
+   elif [ "$CORE_TYPE" = "Smart" ]; then
+      CORE_LV=$(jsonfilter -i /tmp/openclash_version_history.json -e "@.${RELEASE_BRANCH}.latest.core_smart" 2>/dev/null)
    else
-      /usr/share/openclash/clash_version.sh 2>/dev/null
+      CORE_LV=$(jsonfilter -i /tmp/openclash_version_history.json -e "@.${RELEASE_BRANCH}.latest.core_meta" 2>/dev/null)
    fi
-   if [ ! -f "/tmp/clash_last_version" ]; then
+   if [ -z "$CORE_LV" ]; then
       LOG_ERROR "【"$CORE_TYPE"】Core Version Check Error, Please Try Again Later..."
       del_lock
       exit 0
@@ -81,15 +84,12 @@ TMP_FILE="${TARGET_CORE_PATH}.new.$$"
 if [ "$CORE_TYPE" = "Oix" ]; then
    CORE_URL_PATH=""
    DOWNLOAD_FILE="/tmp/clash_meta.gz"
-   CORE_LV=$(sed -n 1p /tmp/clash_last_version 2>/dev/null)
 elif [ "$CORE_TYPE" = "Smart" ]; then
    CORE_URL_PATH="$RELEASE_BRANCH/smart"
    DOWNLOAD_FILE="/tmp/clash_meta.tar.gz"
-   CORE_LV=$(sed -n 2p /tmp/clash_last_version 2>/dev/null)
 else
    CORE_URL_PATH="$RELEASE_BRANCH/meta"
    DOWNLOAD_FILE="/tmp/clash_meta.tar.gz"
-   CORE_LV=$(sed -n 1p /tmp/clash_last_version 2>/dev/null)
 fi
 
 [ "$C_CORE_TYPE" != "$CORE_TYPE" ] || [ -z "$C_CORE_TYPE" ] && restart=1
@@ -103,20 +103,28 @@ if [ -n "$DIRECT_CORE_URL" ] || [ "$CORE_CV" != "$CORE_LV" ] || [ -z "$CORE_CV" 
       elif [ "$CORE_TYPE" = "Oix" ]; then
          OIX_CORE_URL="https://github.com/vernesong/mihomo-oix/releases/download/Pre-Alpha/mihomo-${CPU_MODEL}-${CORE_LV}.gz"
          OIX_CORE_P_URL="https://dl.dler.io/mihomo-oix/mihomo-${CPU_MODEL}-${CORE_LV}.gz?tag=Pre-Alpha"
+         OIX_CHECKSUM_URL="https://github.com/vernesong/mihomo-oix/releases/download/Pre-Alpha/checksums.txt"
+         CHECKSUM_FILENAME="mihomo-${CPU_MODEL}-${CORE_LV}.gz"
          if [ "$github_address_mod" != "0" ] && [ "$github_address_mod" != "https://cdn.jsdelivr.net/" ] && [ "$github_address_mod" != "https://fastly.jsdelivr.net/" ] && [ "$github_address_mod" != "https://testingcf.jsdelivr.net/" ]; then
             DOWNLOAD_URL="${github_address_mod}${OIX_CORE_URL}"
+            CHECKSUM_URL="${github_address_mod}${OIX_CHECKSUM_URL}"
          else
             DOWNLOAD_URL="$OIX_CORE_P_URL"
+            CHECKSUM_URL="$OIX_CHECKSUM_URL"
          fi
       else
+         CHECKSUM_FILENAME="clash-${CPU_MODEL}.tar.gz"
          if [ "$github_address_mod" != "0" ]; then
             if [ "$github_address_mod" == "https://cdn.jsdelivr.net/" ] || [ "$github_address_mod" == "https://fastly.jsdelivr.net/" ] || [ "$github_address_mod" == "https://testingcf.jsdelivr.net/" ]; then
                DOWNLOAD_URL="${github_address_mod}gh/vernesong/OpenClash@core/${CORE_URL_PATH}/clash-${CPU_MODEL}.tar.gz"
+               CHECKSUM_URL="${github_address_mod}gh/vernesong/OpenClash@core/${CORE_URL_PATH}/checksums.txt"
             else
                DOWNLOAD_URL="${github_address_mod}https://raw.githubusercontent.com/vernesong/OpenClash/core/${CORE_URL_PATH}/clash-${CPU_MODEL}.tar.gz"
+               CHECKSUM_URL="${github_address_mod}https://raw.githubusercontent.com/vernesong/OpenClash/core/${CORE_URL_PATH}/checksums.txt"
             fi
          else
             DOWNLOAD_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/${CORE_URL_PATH}/clash-${CPU_MODEL}.tar.gz"
+            CHECKSUM_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/${CORE_URL_PATH}/checksums.txt"
          fi
       fi
 
@@ -128,7 +136,7 @@ if [ -n "$DIRECT_CORE_URL" ] || [ "$CORE_CV" != "$CORE_LV" ] || [ -z "$CORE_CV" 
 
          rm -rf "$DOWNLOAD_FILE" "$TMP_FILE" >/dev/null 2>&1
 
-         SHOW_DOWNLOAD_PROGRESS=1 DOWNLOAD_FILE_CURL "$DOWNLOAD_URL" "$DOWNLOAD_FILE" "$TARGET_CORE_PATH"
+         SHOW_DOWNLOAD_PROGRESS=1 DOWNLOAD_FILE_CURL "$DOWNLOAD_URL" "$DOWNLOAD_FILE" "$TARGET_CORE_PATH" "" "" "" "$CHECKSUM_FILENAME" "$CHECKSUM_URL"
          DOWNLOAD_RESULT=$?
 
          if [ "$DOWNLOAD_RESULT" -eq 0 ]; then
